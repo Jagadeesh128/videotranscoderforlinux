@@ -19,7 +19,7 @@ if [ ! -d "$output_dir" ]; then
         echo "Error: Failed to create directory $output_dir."
         exit 1
     fi
-    echo "Created directory: $output_dir"
+    echo "Created directory : $output_dir"
 fi
 
 # Loop through all input files (all arguments except the last one)
