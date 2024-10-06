@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Trap Ctrl+C (SIGINT) and stop the current process
+trap "echo 'Process interrupted. Exiting...'; exit" SIGINT
+
+# Check if at least two arguments are provided (input file(s) and output folder)
+if [ "$#" -lt 2 ]; then
+    echo "Usage: transv inputfile1 [inputfile2 ... inputfileN] outputfolder"
+    exit 1
+fi
+
+# Get the output directory (last argument)
+output_dir="${!#}"
+
+# Check if the directory exists, if not, create it
+if [ ! -d "$output_dir" ]; then
+    mkdir -p "$output_dir"
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to create directory $output_dir."
+        exit 1
+    fi
+    echo "Created directory: $output_dir"
+fi
+
+# Loop through all input files (all arguments except the last one)
+for ((i=1; i<=$#-1; i++)); do
+    input_file="${!i}"
+
+    # Display processing message
+    echo "Processing $input_file..."
+
+    # Extract metadata using ffprobe
+    metadata=$(ffprobe -v error -show_entries stream=codec_name,codec_type,width,height,duration -of default=noprint_wrappers=1:nokey=1 "$input_file")
+
+    # Show metadata
+    echo "$metadata" | awk 'NR==1{print "  major_brand=" $0}
+                            NR==2{print "  minor_version=" $0}
+                            NR==3{print "  compatible_brands=" $0}
+                            NR==4{print "  encoder=" $0}
+                            NR==5{print "  duration=" $0}'
+
+    # Extract filename without extension
+    filename=$(basename -- "$input_file")
+    filename="${filename%.*}"
+
+    # Set the output file path
+    output_file="$output_dir/${filename}.mov"
+
+    # Transcode the video and save it in the output folder
+    ffmpeg -i "$input_file" -c:v prores -profile:v 3 -c:a pcm_s16le "$output_file" -v quiet -stats
+
+    # Display converting message
+    echo "Converting..."
+    
+    if [ $? -eq 0 ]; then
+        echo "Successfully transcoded $input_file to $output_file"
+    else
+        echo "Error transcoding $input_file"
+    fi
+done
+
